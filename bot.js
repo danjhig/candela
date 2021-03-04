@@ -13,7 +13,7 @@ const WELCOME_MESSAGE =
   `That’s all there is to it! Good luck in all your battles — I know you’ll do great!`
 
 client.on('ready', () => {
-  client.guilds.tap(async guild => initGuild(guild))
+  client.guilds.cache.tap(async guild => setupGuilds(guild))
   console.log('Candela is ready.')
 })
 
@@ -65,14 +65,14 @@ client.on('messageReactionAdd', async (messageReaction, user) => {
   const emojiString = emoji.toString()
   if (emojiString === SUBSCRIBE_EMOJI) {
     try {
-      await member.addRole(role)
+      await member.roles.add(role)
     } catch (e) {
       console.warn(e)
       message.channel.send(`Failed to subscribe <@${user.id}> to **${role.name}**.`)
     }
   } else if (emojiString === UNSUBSCRIBE_EMOJI) {
     try {
-      await member.removeRole(role)
+      await member.roles.remove(role)
     } catch (e) {
       console.warn(e)
       message.channel.send(`Failed to unsubscribe <@${user.id}> from **${role.name}**.`)
@@ -84,10 +84,17 @@ client.on('messageReactionAdd', async (messageReaction, user) => {
 /**
  * @param {Discord.Guild} guild
  */
+function setupGuilds (guild) {
+  guild.forEach(guild => initGuild(guild))
+}
+
+/**
+ * @param {Discord.Guild} guild
+ */
 async function initGuild (guild) {
   const gymMembershipChannel = await getOrCreateGymMembershipChannel(guild)
   // Fetching messages has the important side effect of caching old gym messages.
-  const messages = await gymMembershipChannel.fetchMessages()
+  const messages = await gymMembershipChannel.messages.fetch()
   const candelaMessages = messages.filter(message => message.author.id === client.user.id)
   if (candelaMessages.size === 0) {
     await gymMembershipChannel.send(WELCOME_MESSAGE)
@@ -112,12 +119,12 @@ function roleMessageContent (role) {
  * @returns {Promise<Discord.TextChannel>}
  */
 async function getOrCreateGymMembershipChannel (guild) {
-  const channel = guild.channels.find(channel => channel.name === GYM_MEMBERSHIP)
+  const channel = guild.channels.cache.find(channel => channel.name === GYM_MEMBERSHIP)
   if (channel) {
     return channel
   } else {
     const botOnlyPermissions = ['SEND_MESSAGES', 'ADD_REACTIONS']
-    return guild.createChannel(GYM_MEMBERSHIP, {
+    return guild.channels.create(GYM_MEMBERSHIP, {
       type: 'text',
       permissionOverwrites: [
         { id: guild.id, deny: botOnlyPermissions },
@@ -133,14 +140,16 @@ async function getOrCreateGymMembershipChannel (guild) {
  * @returns {Promise<Discord.Role>}
  */
 async function getOrCreateGymRole (guild, gym) {
-  const role = guild.roles.find(role => role.name === gym)
+  const role = guild.roles.cache.find(role => role.name === gym)
   if (role) {
     return role
   } else {
-    return guild.createRole({
-      name: gym,
-      mentionable: true,
-      permissions: 0
+    return guild.roles.create({
+      data: {
+        name: gym,
+        permissions: 0,
+        mentionable: true
+      }
     })
   }
 }

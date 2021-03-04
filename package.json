@@ -5,7 +5,7 @@
   "main": "bot.js",
   "author": "JTAtomico",
   "dependencies": {
-    "discord.js": "^11.5.1"
+    "discord.js": "^12.5.1"
   },
   "devDependencies": {
     "eslint": "^6.1.0",
@@ -14,7 +14,7 @@
     "eslint-plugin-node": "^9.1.0",
     "eslint-plugin-promise": "^4.2.1",
     "eslint-plugin-standard": "^4.0.0",
-    "heroku": "^7.27.1"
+    "heroku": "^7.50.0"
   },
   "scripts": {
     "start": "heroku local"
