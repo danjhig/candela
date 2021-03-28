@@ -22,7 +22,7 @@ client.on('guildCreate', async guild => {
 })
 
 client.on('message', async message => {
-  if (!shouldListen(message) || (message.author.id === client.user.id)) {
+  if (!shouldListen(message) || (message.author.id === client.user.id) || (message.author.username === client.user.username)) {
     return
   }
   await message.delete()
@@ -52,7 +52,7 @@ client.on('message', async message => {
 
 client.on('messageReactionAdd', async (messageReaction, user) => {
   const { message, emoji } = messageReaction
-  if (!shouldListen(message) || (message.author.id !== client.user.id) || (user.id === client.user.id)) {
+  if (!shouldListen(message) || ((message.author.id !== client.user.id) && (message.author.username !== client.user.username)) || (user.id === client.user.id)) {
     return
   }
   await (messageReaction.message.reactions.cache.first().users.remove(user.id) && messageReaction.message.reactions.cache.last().users.remove(user.id))
@@ -78,7 +78,14 @@ client.on('messageReactionAdd', async (messageReaction, user) => {
       message.channel.send(`Failed to unsubscribe <@${user.id}> from **${role.name}**.`)
     }
   }
-  await message.edit(roleMessageContent(role))
+  if (message.author.id !== client.user.id) {
+    await message.delete()
+    const roleMessage = await message.channel.send(roleMessageContent(role))
+    await roleMessage.react(SUBSCRIBE_EMOJI)
+    await roleMessage.react(UNSUBSCRIBE_EMOJI)
+  } else {
+    await message.edit(roleMessageContent(role))
+  }
 })
 
 /**
@@ -95,9 +102,13 @@ async function initGuild (guild) {
   const gymMembershipChannel = await getOrCreateGymMembershipChannel(guild)
   // Fetching messages has the important side effect of caching old gym messages.
   const messages = await gymMembershipChannel.messages.fetch()
-  const candelaMessages = messages.filter(message => message.author.id === client.user.id)
+  const candelaMessages = messages.filter(message => message.author.id === client.user.id || message.author.username === client.user.username)
   if (candelaMessages.size === 0) {
-    await gymMembershipChannel.send(WELCOME_MESSAGE)
+    try {
+      await gymMembershipChannel.send(WELCOME_MESSAGE)
+    } catch (e) {
+      console.log(e)
+    }
   }
 }
 
@@ -120,10 +131,14 @@ function roleMessageContent (role) {
  */
 async function getOrCreateGymMembershipChannel (guild) {
   const channel = guild.channels.cache.find(channel => channel.name === GYM_MEMBERSHIP)
+  const botOnlyPermissions = ['SEND_MESSAGES', 'ADD_REACTIONS']
   if (channel) {
+    channel.overwritePermissions([
+      { id: guild.id, deny: botOnlyPermissions },
+      { id: client.user.id, allow: botOnlyPermissions }
+    ], 'Ensure permissions are correct')
     return channel
   } else {
-    const botOnlyPermissions = ['SEND_MESSAGES', 'ADD_REACTIONS']
     return guild.channels.create(GYM_MEMBERSHIP, {
       type: 'text',
       permissionOverwrites: [
