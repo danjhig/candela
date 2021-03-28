@@ -55,7 +55,7 @@ client.on('messageReactionAdd', async (messageReaction, user) => {
   if (!shouldListen(message) || (message.author.id !== client.user.id) || (user.id === client.user.id)) {
     return
   }
-  await messageReaction.remove(user)
+  await (messageReaction.message.reactions.cache.first().users.remove(user.id) && messageReaction.message.reactions.cache.last().users.remove(user.id))
   const role = message.mentions.roles.first()
   if (!role) {
     return
